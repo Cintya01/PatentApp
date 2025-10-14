@@ -2,20 +2,22 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions } from "react-native";
 import { Camera, CameraView } from "expo-camera";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
-import { WebView } from "react-native-webview";
+import { WebView } from 'react-native-webview';
 
 const { width, height } = Dimensions.get("window");
 
-const PLATE_API_TOKEN = "d730676f0615226fbe06ce41ac0ae04f7f6f26cd";
+const PLATE_API_TOKEN = "d730676f0615226fbe06ce41ac0ae04f7f6f26cd"; // 🔹 Reemplaza con tu token de Plate Recognizer
+const CARABINEROS_URL = "https://www.autoseguro.gob.cl/";
 const PATENTE_CHILE_URL = "https://www.patentechile.com/";
 
 export default function App() {
+
   const cameraRef = useRef<CameraView | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanning, setScanning] = useState(false);
   const [recognizedPlate, setRecognizedPlate] = useState<string | null>(null);
 
-  // 🔹 Solicitud de permisos de cámara
+  //permisos de camara
   useEffect(() => {
     (async () => {
       const { status } = await Camera.requestCameraPermissionsAsync();
@@ -23,7 +25,7 @@ export default function App() {
     })();
   }, []);
 
-  // 🔹 Captura y análisis de imagen con Plate Recognizer
+  //captura y analisis de imagen
   const handleCapture = async () => {
     if (!cameraRef.current || scanning) return;
     setScanning(true);
@@ -40,7 +42,7 @@ export default function App() {
         format: SaveFormat.JPEG,
         base64: true
       });
-      // 🔹 Envío a Plate Recognizer API
+
       const response = await fetch("https://api.platerecognizer.com/v1/plate-reader/", {
         method: "POST",
         headers: {
@@ -53,9 +55,24 @@ export default function App() {
       const data = await response.json();
       console.log("Plate API response:", data);
 
+      //     if (data.results && data.results.length > 0) {
+      //       const plate = data.results[0].plate.toUpperCase();
+      //       const finalUrl = `${CARABINEROS_URL}?patente=${plate}`;
+      //       await Linking.openURL(finalUrl);
+      //     } else {
+      //       alert("No se detectó ninguna patente. Intenta nuevamente.");
+      //     }
+      //   } catch (error) {
+      //     console.error("Error al procesar la imagen:", error);
+      //     alert("Hubo un error al escanear la patente.");
+      //   } finally {
+      //     setScanning(false);
+      //   }
+      // };
+
       if (data.results && data.results.length > 0) {
         const plate = data.results[0].plate.toUpperCase();
-        setRecognizedPlate(plate); // 🔹 Mostrar en cámara y luego en WebView
+        setRecognizedPlate(plate); // Guardamos la patente para el WebView
       } else {
         alert("No se detectó ninguna patente. Intenta nuevamente.");
       }
@@ -67,25 +84,54 @@ export default function App() {
     }
   };
 
-  // 🔹 Mostrar WebView con la patente insertada en el campo correspondiente
+  // if (hasPermission === null) {
+  //   return <View />;
+  // }
+  // if (hasPermission === false) {
+  //   return <Text>No se otorgó permiso para usar la cámara</Text>;
+  // }
+
+  // return (
+  //   <View style={styles.container}>
+  //     <CameraView style={styles.camera} facing={"back"} ref={cameraRef} ratio="16:9">
+  //       <View style={styles.overlay}>
+  //         <View style={styles.mask} />
+  //       </View>
+  //       <TouchableOpacity style={styles.captureButton} onPress={handleCapture} disabled={scanning}>
+  //         {scanning ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Escanear</Text>}
+  //       </TouchableOpacity>
+  //     </CameraView>
+  //   </View>
+  // );
+
+  // Si ya hay patente reconocida, mostrar WebView apuntando a patentechile con inyección JS
   if (recognizedPlate) {
-    // Inyecta JS con un delay de 3 segundos antes de escribir y buscar
+    // Polling JS: intenta encontrar #inputTerm varias veces y luego lo rellena
     const injectedJS = `
-      setTimeout(() => {
-        const input = document.querySelector('#inputTerm');
-        const btn = document.querySelector('button[type="submit"], #btnSearch, .btn-primary');
-        if (input) {
-          input.focus();
-          input.value = "${recognizedPlate}";
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-          console.log('Patente ingresada: ${recognizedPlate}');
+      (function() {
+        function fillInput() {
+          const input = document.querySelector('#inputTerm');
+          if (input) {
+            input.focus();
+            input.value = "${recognizedPlate}";
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+          }
+          return false;
         }
-        if (btn) {
-          btn.click();
-          console.log('Botón buscar presionado');
+
+        // intentar inmediatamente, luego hasta 10 veces cada 300ms
+        if (!fillInput()) {
+          let attempts = 0;
+          const interval = setInterval(() => {
+            attempts++;
+            if (fillInput() || attempts >= 10) {
+              clearInterval(interval);
+            }
+          }, 300);
         }
-      }, 3000); // ⏱️ Delay de 3 segundos
+      })();
       true;
     `;
 
@@ -97,37 +143,29 @@ export default function App() {
         renderLoading={() => (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
             <ActivityIndicator size="large" color="#007AFF" />
-            <Text>Cargando portal de PatenteChile...</Text>
+            <Text>Cargando portal de Autoseguro...</Text>
           </View>
         )}
       />
     );
   }
 
-  // 🔹 Vista principal con cámara y overlay
-  if (hasPermission === null) return <View />;
-  if (hasPermission === false) return <Text>No se otorgó permiso para usar la cámara</Text>;
+  // Vista principal de cámara
+  if (hasPermission === null) {
+    return <View />;
+  }
+  if (hasPermission === false) {
+    return <Text>No se otorgó permiso para usar la cámara</Text>;
+  }
 
   return (
     <View style={styles.container}>
-      <CameraView style={styles.camera} facing="back" ref={cameraRef} ratio="16:9">
+      <CameraView style={styles.camera} facing={"back"} ref={cameraRef} ratio="16:9">
         <View style={styles.overlay}>
-          <View style={styles.mask}>
-            {recognizedPlate && (
-              <Text style={styles.plateText}>{recognizedPlate}</Text>
-            )}
-          </View>
+          <View style={styles.mask} />
         </View>
-        <TouchableOpacity
-          style={styles.captureButton}
-          onPress={handleCapture}
-          disabled={scanning}
-        >
-          {scanning ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Escanear</Text>
-          )}
+        <TouchableOpacity style={styles.captureButton} onPress={handleCapture} disabled={scanning}>
+          {scanning ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Escanear</Text>}
         </TouchableOpacity>
       </CameraView>
     </View>
@@ -149,13 +187,6 @@ const styles = StyleSheet.create({
     borderColor: "#00FFAA",
     borderRadius: 8,
     backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  plateText: {
-    color: "#00FFAA",
-    fontSize: 24,
-    fontWeight: "bold",
   },
   captureButton: {
     alignSelf: "center",
