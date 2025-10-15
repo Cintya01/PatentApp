@@ -6,14 +6,16 @@ import { WebView } from "react-native-webview";
 
 const { width, height } = Dimensions.get("window");
 
-const PLATE_API_TOKEN = "d730676f0615226fbe06ce41ac0ae04f7f6f26cd";
-const PATENTE_CHILE_URL = "https://www.patentechile.com/";
+const PLATE_API_TOKEN = "d730676f0615226fbe06ce41ac0ae04f7f6f26cd"; // 🔹 Reemplaza con tu token de Plate Recognizer
+const PATENTE_CHILE_URL = "https://www.volanteomaleta.com/";
 
 export default function App() {
   const cameraRef = useRef<CameraView | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanning, setScanning] = useState(false);
   const [recognizedPlate, setRecognizedPlate] = useState<string | null>(null);
+  const [showWebView, setShowWebView] = useState(false);
+  const [redirecting, setRedirecting] = useState(false); // 🔹 Nuevo estado para mostrar animación de redirección
 
   // 🔹 Solicitud de permisos de cámara
   useEffect(() => {
@@ -31,15 +33,16 @@ export default function App() {
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.5, base64: true });
 
-      //limpieza de imagen
+      // Limpieza de imagen con ImageManipulator (forma actual)
       const context = ImageManipulator.manipulate(photo.uri);
       context.resize({ width: photo.width * 0.5 });
       const renderedImage = await context.renderAsync();
       const resized = await renderedImage.saveAsync({
         compress: 0.5,
         format: SaveFormat.JPEG,
-        base64: true
+        base64: true,
       });
+
       // 🔹 Envío a Plate Recognizer API
       const response = await fetch("https://api.platerecognizer.com/v1/plate-reader/", {
         method: "POST",
@@ -55,7 +58,14 @@ export default function App() {
 
       if (data.results && data.results.length > 0) {
         const plate = data.results[0].plate.toUpperCase();
-        setRecognizedPlate(plate); // 🔹 Mostrar en cámara y luego en WebView
+        setRecognizedPlate(plate);
+
+        // 🔹 Mostrar patente y animación durante 3 segundos antes de redirigir
+        setRedirecting(true);
+        setTimeout(() => {
+          setRedirecting(false);
+          setShowWebView(true);
+        }, 3000);
       } else {
         alert("No se detectó ninguna patente. Intenta nuevamente.");
       }
@@ -68,31 +78,46 @@ export default function App() {
   };
 
   // 🔹 Mostrar WebView con la patente insertada en el campo correspondiente
-  if (recognizedPlate) {
-    // Inyecta JS con un delay de 3 segundos antes de escribir y buscar
+  console.log("showview", showWebView, "recog", recognizedPlate)
+  if (showWebView && recognizedPlate) {
     const injectedJS = `
-      setTimeout(() => {
-        const input = document.querySelector('#inputTerm');
-        const btn = document.querySelector('button[type="submit"], #btnSearch, .btn-primary');
-        if (input) {
+    (function() {
+      console.log("🔹 Script inyectado, esperando elementos...");
+
+      function tryInject() {
+        const input = document.querySelector('input[name="term"]');
+        const btn = document.querySelector('button[type="submit"]');
+
+        if (input && btn) {
+          console.log("✅ Elementos encontrados, insertando patente...");
           input.focus();
           input.value = "${recognizedPlate}";
           input.dispatchEvent(new Event('input', { bubbles: true }));
           input.dispatchEvent(new Event('change', { bubbles: true }));
-          console.log('Patente ingresada: ${recognizedPlate}');
+
+          // Espera breve antes del clic, por si el sitio reacciona al cambio
+          setTimeout(() => {
+            btn.click();
+            console.log("🔍 Botón de búsqueda presionado automáticamente");
+            window.ReactNativeWebView?.postMessage("Patente insertada y buscada");
+          }, 1000);
+        } else {
+          console.log("⏳ Aún no se encuentran los elementos, reintentando...");
+          setTimeout(tryInject, 1000);
         }
-        if (btn) {
-          btn.click();
-          console.log('Botón buscar presionado');
-        }
-      }, 3000); // ⏱️ Delay de 3 segundos
-      true;
-    `;
+      }
+
+      // Espera 3 segundos para asegurarse de que el sitio cargó
+      setTimeout(tryInject, 3000);
+    })();
+    true;
+  `;
 
     return (
       <WebView
         source={{ uri: PATENTE_CHILE_URL }}
-        injectedJavaScript={injectedJS}
+        injectedJavaScriptBeforeContentLoaded={injectedJS}
+        onMessage={(event) => console.log("📩 Mensaje desde WebView:", event.nativeEvent.data)}
         startInLoadingState
         renderLoading={() => (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -104,6 +129,7 @@ export default function App() {
     );
   }
 
+
   // 🔹 Vista principal con cámara y overlay
   if (hasPermission === null) return <View />;
   if (hasPermission === false) return <Text>No se otorgó permiso para usar la cámara</Text>;
@@ -113,11 +139,21 @@ export default function App() {
       <CameraView style={styles.camera} facing="back" ref={cameraRef} ratio="16:9">
         <View style={styles.overlay}>
           <View style={styles.mask}>
-            {recognizedPlate && (
-              <Text style={styles.plateText}>{recognizedPlate}</Text>
+            {/* Mostrar patente y animación antes de redirigir */}
+            {recognizedPlate && !showWebView && (
+              <View style={{ alignItems: "center" }}>
+                <Text style={styles.plateText}>{recognizedPlate}</Text>
+                {redirecting && (
+                  <View style={styles.redirectContainer}>
+                    <ActivityIndicator size="small" color="#00FFAA" style={{ marginRight: 8 }} />
+                    <Text style={styles.redirectText}>Patente detectada, redirigiendo...</Text>
+                  </View>
+                )}
+              </View>
             )}
           </View>
         </View>
+
         <TouchableOpacity
           style={styles.captureButton}
           onPress={handleCapture}
@@ -154,8 +190,19 @@ const styles = StyleSheet.create({
   },
   plateText: {
     color: "#00FFAA",
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
+    letterSpacing: 2,
+  },
+  redirectContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  redirectText: {
+    color: "#00FFAA",
+    fontSize: 14,
+    fontWeight: "500",
   },
   captureButton: {
     alignSelf: "center",
