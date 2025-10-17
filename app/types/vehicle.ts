@@ -1,14 +1,14 @@
 export interface VehicleInfo {
-    plate: string;
+    patente: string;
     dv: string;
-    type: string;
-    make: string;
-    model: string;
-    year: number;
+    tipo: string;
+    marca: string;
+    modelo: string;
+    año: number;
     color: string;
     motor: string;
     chasis: string;
     procedencia: string;
     fabricante: string;
-    robo: boolean;
+    enRobo: boolean;
 }
