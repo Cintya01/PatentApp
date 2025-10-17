@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ScannerScreen } from "./screens/ScannerScreen";
-import { VehicleResultScreen } from "./screens/VehicleResultScreen";
+import VehicleResultScreen from "./screens/VehicleResultScreen";
 import { VehicleInfo } from "./types/vehicle";
 
 export default function App() {

@@ -4,18 +4,18 @@ const VEHICLE_API_BASE = "https://www.gurapp.cl/vehicle/";
 
 function mapVehicleApiResponse(apiData: any): VehicleInfo {
     return {
-        patente: apiData.plate,
-        dv: apiData.dv,
-        tipo: apiData.type,
-        marca: apiData.make,
-        modelo: apiData.model,
-        año: apiData.year,
-        color: apiData.color,
-        motor: apiData.motor,
-        chasis: apiData.chasis,
-        procedencia: apiData.procedencia,
-        fabricante: apiData.fabricante,
-        enRobo: apiData.robo,
+        Patente: apiData.plate,
+        DV: apiData.dv,
+        Tipo: apiData.type,
+        Marca: apiData.make,
+        Modelo: apiData.model,
+        Año: apiData.year,
+        Color: apiData.color,
+        Motor: apiData.motor,
+        Chasis: apiData.chasis,
+        Procedencia: apiData.procedencia,
+        Fabricante: apiData.fabricante,
+        "Encargo por Robo": apiData.robo,
     };
 }
 
