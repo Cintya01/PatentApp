@@ -1,7 +1,11 @@
 import React, { useState } from "react";
+import { LogBox } from "react-native";
 import { ScannerScreen } from "./screens/ScannerScreen";
 import VehicleResultScreen from "./screens/VehicleResultScreen";
 import { VehicleInfo } from "./types/vehicle";
+
+// Oculta todos los warnings
+LogBox.ignoreAllLogs(true);
 
 export default function App() {
     const [vehicleData, setVehicleData] = useState<VehicleInfo | null>(null);
