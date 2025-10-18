@@ -1,6 +1,6 @@
 const PLATE_API_TOKEN = "d730676f0615226fbe06ce41ac0ae04f7f6f26cd";
 
-export async function getPlateFromImage(base64Image?: string): Promise<{ plate: string; region: { code: string; score: number } } | null> {
+export async function getPlateFromImage(base64Image?: string): Promise<{ plate: string; region: { code: string }, score: number, dscore: number } | null> {
     if (!base64Image) return null;
 
     try {
@@ -18,7 +18,9 @@ export async function getPlateFromImage(base64Image?: string): Promise<{ plate: 
             const result = data.results[0];
             return {
                 plate: result.plate.toUpperCase(),
-                region: result.region,
+                region: result.region, //region de la placa,
+                score: result.score, //confiabilidad de que la placa es correcta,
+                dscore: result.dscore //confiabilidad de que hay una placa en la imagen,
             };
         }
         return null;
