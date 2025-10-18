@@ -1,6 +1,6 @@
 const PLATE_API_TOKEN = "d730676f0615226fbe06ce41ac0ae04f7f6f26cd";
 
-export async function getPlateFromImage(base64Image?: string): Promise<string | null> {
+export async function getPlateFromImage(base64Image?: string): Promise<{ plate: string; region: { code: string; score: number } } | null> {
     if (!base64Image) return null;
 
     try {
@@ -10,12 +10,16 @@ export async function getPlateFromImage(base64Image?: string): Promise<string | 
                 Authorization: `Token ${PLATE_API_TOKEN}`,
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ upload: `data:image/jpeg;base64,${base64Image}` }),
+            body: JSON.stringify({ upload: `data:image/jpeg;base64,${base64Image}`, regions: ["cl"] }),
         });
 
-        const data = await response.json();
+      const data = await response.json();
         if (data.results && data.results.length > 0) {
-            return data.results[0].plate.toUpperCase();
+            const result = data.results[0];
+            return {
+                plate: result.plate.toUpperCase(),
+                region: result.region,
+            };
         }
         return null;
     } catch (err) {

@@ -29,7 +29,7 @@ export async function getVehicleData(patente: string): Promise<VehicleInfo | nul
 
         return vehicle;
     } catch (err) {
-        console.error("Error al obtener datos del vehículo:", err);
+        console.error("Error al reconocer patente:", err);
         return null;
     }
 }
