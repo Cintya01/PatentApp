@@ -27,7 +27,10 @@ export const ScannerScreen: React.FC<Props> = ({ onRecognized }) => {
     const handleCapture = async () => {
         if (!cameraRef.current || scanning) return;
         setScanning(true);
-
+        const okButton = {
+            text: "OK",      // texto del botón
+            onPress: () => setRecognizedPlate(''), // acción
+          }
         try {
             const photo = await cameraRef.current.takePictureAsync({ quality: 0.5, base64: true });
 
@@ -44,13 +47,13 @@ export const ScannerScreen: React.FC<Props> = ({ onRecognized }) => {
                 Alert.alert("Sin resultado", "No se detectó ninguna patente.");
                 return;
             }
+            const plate = plateResult.plate;
 
             if (plateResult.region && plateResult.region.code !== "cl") {
-                Alert.alert("Patente no válida", "La patente no es chilena o no pertenece a la región CL.");
+                Alert.alert("Patente no válida", `La patente ${plate} no es chilena o no pertenece a la región CL.`, [okButton], { cancelable: false });
                 return;
             }
-
-            const plate = plateResult.plate;
+            
             setRecognizedPlate(plate);
             setLoadingVehicle(true);
 
@@ -58,11 +61,11 @@ export const ScannerScreen: React.FC<Props> = ({ onRecognized }) => {
             if (vehicleInfo) {
                 onRecognized(plate, vehicleInfo);
             } else {
-                Alert.alert("Sin datos", "No se encontró información del vehículo.");
+                Alert.alert("Sin datos", `No se encontró información del vehículo ${plate}.`, [okButton], { cancelable: false });
             }
         } catch (err) {
             console.error(err);
-            Alert.alert("Error", "Ocurrió un error al procesar la imagen.");
+            Alert.alert("Error", "Ocurrió un error al procesar la imagen.", [okButton], { cancelable: false });
         } finally {
             setScanning(false);
             setLoadingVehicle(false);
