@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 import { Camera, CameraView } from "expo-camera";
 import * as ImageManipulator from "expo-image-manipulator";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from "react-native";
 import { getPlateFromImage } from "../services/plateRecognizer";
 import { getVehicleData } from "../services/vehicleData";
 import { styles } from "../styles/screens/ScannerScreen.styles";
@@ -37,12 +37,20 @@ export const ScannerScreen: React.FC<Props> = ({ onRecognized }) => {
                 { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
             );
 
-            const plate = await getPlateFromImage(manipulated.base64);
-            if (!plate) {
-                alert("No se detectó ninguna patente.");
+            const plateResult = await getPlateFromImage(manipulated.base64);
+            console.log(plateResult)
+
+            if (!plateResult) {
+                Alert.alert("Sin resultado", "No se detectó ninguna patente.");
                 return;
             }
 
+            if (plateResult.region && plateResult.region.code !== "cl") {
+                Alert.alert("Patente no válida", "La patente no es chilena o no pertenece a la región CL.");
+                return;
+            }
+
+            const plate = plateResult.plate;
             setRecognizedPlate(plate);
             setLoadingVehicle(true);
 
@@ -50,11 +58,11 @@ export const ScannerScreen: React.FC<Props> = ({ onRecognized }) => {
             if (vehicleInfo) {
                 onRecognized(plate, vehicleInfo);
             } else {
-                alert("No se encontró información del vehículo.");
+                Alert.alert("Sin datos", "No se encontró información del vehículo.");
             }
         } catch (err) {
             console.error(err);
-            alert("Error al procesar la imagen.");
+            Alert.alert("Error", "Ocurrió un error al procesar la imagen.");
         } finally {
             setScanning(false);
             setLoadingVehicle(false);
